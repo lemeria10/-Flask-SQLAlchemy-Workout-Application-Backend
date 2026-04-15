@@ -8,16 +8,23 @@ schema = WorkoutSchema()
 
 @workout_bp.route("/workouts", methods=["GET"])
 def get_workouts():
-    return jsonify(schema.dump(Workout.query.all(), many=True))
+    workouts = Workout.query.all()
+    return jsonify(schema.dump(workouts, many=True))
 
 @workout_bp.route("/workouts", methods=["POST"])
 def create_workout():
     try:
         data = request.get_json()
+
+        # FIX: convert string → date
+        data["date"] = datetime.strptime(data["date"], "%Y-%m-%d").date()
+
         workout = Workout(**data)
         db.session.add(workout)
         db.session.commit()
+
         return schema.dump(workout), 201
+
     except Exception as e:
         return {"error": str(e)}, 400
 
