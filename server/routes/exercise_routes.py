@@ -13,10 +13,10 @@ def get_exercises():
 def create_exercise():
     try:
         data = request.get_json()
-        ex = Exercise(**data)
-        db.session.add(ex)
+        exercise = Exercise(**data)
+        db.session.add(exercise)
         db.session.commit()
-        return schema.dump(ex), 201
+        return schema.dump(exercise), 201
     except Exception as e:
         return {"error": str(e)}, 400
 

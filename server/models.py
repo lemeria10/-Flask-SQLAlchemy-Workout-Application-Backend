@@ -3,7 +3,9 @@ from sqlalchemy.orm import validates
 
 db = SQLAlchemy()
 
-# ---------------- Exercise ----------------
+# =========================
+# Exercise
+# =========================
 class Exercise(db.Model):
     __tablename__ = "exercises"
 
@@ -12,15 +14,30 @@ class Exercise(db.Model):
     category = db.Column(db.String, nullable=False)
     equipment_needed = db.Column(db.Boolean, nullable=False)
 
-    workouts = db.relationship("WorkoutExercise", back_populates="exercise")
+    # One-to-many → WorkoutExercise
+    workout_exercises = db.relationship(
+        "WorkoutExercise",
+        back_populates="exercise",
+        cascade="all, delete-orphan"
+    )
+
+    # Many-to-many convenience
+    workouts = db.relationship(
+        "Workout",
+        secondary="workout_exercises",
+        viewonly=True
+    )
 
     @validates("name")
     def validate_name(self, key, value):
-        if len(value) < 2:
-            raise ValueError("Name too short")
+        if not value or len(value) < 2:
+            raise ValueError("Exercise name too short")
         return value
 
-# ---------------- Workout ----------------
+
+# =========================
+# Workout
+# =========================
 class Workout(db.Model):
     __tablename__ = "workouts"
 
@@ -29,34 +46,56 @@ class Workout(db.Model):
     duration_minutes = db.Column(db.Integer, nullable=False)
     notes = db.Column(db.Text)
 
-    exercises = db.relationship(
+    # One-to-many → WorkoutExercise
+    workout_exercises = db.relationship(
         "WorkoutExercise",
         back_populates="workout",
         cascade="all, delete-orphan"
     )
 
+    # Many-to-many convenience
+    exercises = db.relationship(
+        "Exercise",
+        secondary="workout_exercises",
+        viewonly=True
+    )
+
     @validates("duration_minutes")
     def validate_duration(self, key, value):
         if value <= 0:
-            raise ValueError("Must be positive")
+            raise ValueError("Duration must be positive")
         return value
 
-# ---------------- Join Table ----------------
+
+# =========================
+# WorkoutExercise (JOIN MODEL)
+# =========================
 class WorkoutExercise(db.Model):
     __tablename__ = "workout_exercises"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    workout_id = db.Column(db.Integer, db.ForeignKey("workouts.id"), nullable=False)
-    exercise_id = db.Column(db.Integer, db.ForeignKey("exercises.id"), nullable=False)
+    workout_id = db.Column(
+        db.Integer,
+        db.ForeignKey("workouts.id"),
+        nullable=False
+    )
+
+    exercise_id = db.Column(
+        db.Integer,
+        db.ForeignKey("exercises.id"),
+        nullable=False
+    )
 
     reps = db.Column(db.Integer)
     sets = db.Column(db.Integer)
     duration_seconds = db.Column(db.Integer)
 
-    workout = db.relationship("Workout", back_populates="exercises")
-    exercise = db.relationship("Exercise", back_populates="workouts")
+    # Relationships
+    workout = db.relationship("Workout", back_populates="workout_exercises")
+    exercise = db.relationship("Exercise", back_populates="workout_exercises")
 
+    # Prevent duplicates
     __table_args__ = (
         db.UniqueConstraint("workout_id", "exercise_id", name="unique_workout_exercise"),
     )
@@ -64,5 +103,5 @@ class WorkoutExercise(db.Model):
     @validates("reps", "sets", "duration_seconds")
     def validate_numbers(self, key, value):
         if value is not None and value <= 0:
-            raise ValueError(f"{key} must be > 0")
+            raise ValueError(f"{key} must be greater than 0")
         return value
